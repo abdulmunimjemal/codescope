@@ -26,14 +26,19 @@ point.
 (`phoenix` and `trigger.dev` are multi-language: TypeScript, TSX, Python, Go,
 JavaScript — all indexed in a single pass.)
 
-### The headline: incremental freshness
+### Incremental freshness
 
-The whole bet behind codescope is **watch-first**. Refreshing the graph after you
-edit one file costs **~0.5–0.65 ms** (read + parse + replace) on a 3,000-file
-repo — **2,700–3,000× cheaper than a full re-index**. That is what makes "the
-graph is never stale" practical: codescope re-indexes on every save in well under
-a frame, so an agent always queries the current code, not a snapshot from when
-you started the session.
+Refreshing the graph after you edit one file costs **~0.5–0.65 ms** in-process
+(read + parse + replace) on a 3,000-file repo — **2,700–3,000× cheaper than a
+full re-index of the same repo**. codescope re-indexes on every save via its file
+watcher, so an agent always queries current code, not a stale snapshot.
+
+> **Honest note:** codegraph *also* does incremental updates (`codegraph sync`)
+> and *also* ships a file watcher that auto-syncs in `serve` mode by default.
+> Watch-first is **not** a feature codescope has and codegraph lacks — both have
+> it. The ~0.5 ms figure above is codescope's *in-process* per-file cost; it is
+> not a head-to-head win over codegraph's watcher (which does comparable work).
+> See the comparison table below for what the measured differences actually are.
 
 ### Token efficiency
 
@@ -48,37 +53,57 @@ per query). For the *"what's in this file"* task, `file_outline` is **59–86%**
 smaller than reading the file. Bigger files ⇒ bigger savings, which is why the
 reduction climbs on large repos.
 
-## How codescope compares to codegraph (the SOTA)
+## How codescope compares to codegraph (measured head-to-head)
 
 [codegraph](https://github.com/colbymchenry/codegraph) (~35k★) is the leading
 local codebase-graph MCP and shares codescope's architecture (tree-sitter →
-SQLite + FTS5 → MCP). **It was not executed for these benchmarks** — running an
-unvetted third-party package was outside this environment's sandbox — so the
-comparison below is on **published claims and documented architecture**, while
-all codescope numbers above are **measured**. Treat this section as directional,
-not a measured head-to-head.
+SQLite + FTS5 → MCP). It **was executed** for this comparison (`@colbymchenry/codegraph`
+on the same `mcp-ts-sdk` checkout, ~275 files, same machine).
 
-| dimension | codegraph (published / documented) | codescope (measured) |
-|-----------|-----------------------------------|----------------------|
-| token reduction vs baseline | "57% fewer tokens" avg (vendor) | 71–98% on nav tasks |
-| tool-call reduction | "62% fewer tool calls" (vendor) | 1 query replaces grep + N×read |
-| freshness model | re-index / re-scan | **per-save incremental, ~0.5 ms** |
+| dimension | codegraph (measured) | codescope (measured) |
+|-----------|----------------------|----------------------|
+| full index (mcp-ts-sdk) | 986 ms (parse+resolve, internal timer) | ~495 ms (in-process) |
+| index DB size | **7.84 MB** | **2.5 MB** (~3× smaller) |
+| nodes captured | 3,585 (functions, methods, classes, interfaces, types, **constants, properties, routes, imports, files**) | 1,956 definitions (functions, methods, classes, interfaces, types, enums) |
+| incremental | `sync` command **+ file watcher (auto-sync in `serve`)** | file watcher + per-file replace |
 | search | SQLite FTS5 | SQLite FTS5 (trigram substring) |
-| languages | 20+ | 12 (TS/JS/TSX, Py, Go, Rust, Java, Ruby, C, C++, C#, PHP) |
-| storage | `.codegraph/codegraph.db` | `.codescope/graph.db`, 100% local |
+| languages | **20+** | 12 (TS/JS/TSX, Py, Go, Rust, Java, Ruby, C, C++, C#, PHP) |
+| extra tooling | `impact`, `affected` (test impact), `context` (task context), `callees`, agent auto-install | — |
+| query answer | kind + location + code snippet (~184 tokens for a 5-result query) | kind + location + signature (compact lines) |
 | install | `npx @colbymchenry/codegraph` | `npx codescope` |
 
-**Where codescope aims to win:** the incremental/watch-first freshness wedge
-(quantified above) and matching-or-better token reduction. **Where codegraph
-leads today:** breadth (20+ languages) and a large, proven user base. codescope's
-honest position is "smaller, fresher, and easy to verify," not "more features."
+### Honest verdict
+
+codescope **does not beat codegraph overall.** codegraph is a more mature, more
+featureful tool (impact analysis, test-affected detection, task-context builder,
+20+ languages, agent auto-install) and it **already has** the incremental +
+file-watcher behaviour that this project's original premise assumed was missing.
+
+Where codescope **genuinely wins, measured:**
+
+- **~3× smaller index** (2.5 MB vs 7.84 MB on the same repo) and **~2× faster
+  pure indexing** — though codegraph indexes *more* (constants, properties,
+  routes), so it is doing more work for that time/size.
+- **Smaller, simpler, fully auditable** codebase (one SQLite file, ~1k LOC, MIT,
+  zero-config `npx codescope mcp .`).
+
+Where codegraph leads: **features, language breadth, maturity, and adoption.**
+
+codescope's honest position is **"a lean, fast, easy-to-verify alternative,"**
+not "the codegraph killer." The token-reduction numbers above are real but they
+measure codescope vs *reading whole files*, the same baseline codegraph reports
+against — they are **not** evidence that codescope beats codegraph.
 
 ## Caveats (read these)
 
-- **codegraph numbers are the vendor's**, across a different 7-repo set, measured
-  with a full LLM agent loop. They are not directly comparable to codescope's
-  deterministic measurements — they bound a *different* quantity (end-to-end agent
-  task cost). Don't read the table as "codescope beat codegraph by X%."
+- **The codegraph head-to-head is single-repo, single-run** (mcp-ts-sdk, one
+  machine). codegraph and codescope count "nodes"/"symbols" differently (codegraph
+  captures more node kinds), so index time and DB size are informative but not a
+  pure apples-to-apples ratio. The honest verdict above accounts for this.
+- **codegraph's own published claims** ("57% fewer tokens / 62% fewer tool calls")
+  come from a full LLM agent loop across a different 7-repo set and bound a
+  *different* quantity (end-to-end agent task cost) than codescope's deterministic
+  measurements. Don't equate the two.
 - **Token baseline is a model**, not a trace of a real agent: it assumes the agent
   reads the whole containing file, which is the documented failure mode but not
   the only possible behaviour.

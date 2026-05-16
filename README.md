@@ -26,6 +26,18 @@ See [BENCHMARKS.md](./BENCHMARKS.md): on a 2,500-file repo, codescope answers a
 navigation query in **~70–98% fewer tokens** than reading the file, and refreshes
 a changed file in **~0.5 ms** — roughly **3,000× cheaper than a full re-index**.
 
+## How it compares to codegraph
+
+If you know [codegraph](https://github.com/colbymchenry/codegraph) (~35k★): it's
+the mature, feature-rich option — 20+ languages, impact/test-affected analysis, a
+task-context builder, agent auto-install — and it already does incremental
+indexing and file-watching. **codescope doesn't try to out-feature it.** In a
+measured head-to-head ([BENCHMARKS.md](./BENCHMARKS.md)) codescope's edge is being
+**leaner**: ~3× smaller index DB and faster pure indexing on the same repo, a
+~1k-LOC auditable codebase, and zero-config `npx codescope mcp .`. Pick codescope
+if you want something small, fast, and easy to read; pick codegraph if you want
+the deepest feature set and widest language coverage.
+
 ## Install
 
 ```bash
