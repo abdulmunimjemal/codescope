@@ -41,11 +41,12 @@ the deepest feature set and widest language coverage.
 ## Install
 
 ```bash
-npx codescope mcp .          # zero-install, or:
-npm i -g codescope
+npx @abdulmunimjemal/codescope mcp .          # zero-install, or:
+npm i -g @abdulmunimjemal/codescope           # then the `codescope` command is on your PATH
 ```
 
-Requires Node ≥ 18.
+Requires Node ≥ 18. (The npm package is scoped because the bare name `codescope`
+collides with an existing package; the installed command is still `codescope`.)
 
 ## Quick start
 
@@ -61,13 +62,13 @@ codescope mcp /path/to/your/repo
 ```json
 {
   "mcpServers": {
-    "codescope": { "command": "npx", "args": ["codescope", "mcp", "."] }
+    "codescope": { "command": "npx", "args": ["-y", "@abdulmunimjemal/codescope", "mcp", "."] }
   }
 }
 ```
 
-**Cursor / Codex / any MCP client:** use the same command — `npx codescope mcp .`
-over stdio.
+**Cursor / Codex / any MCP client:** use the same command —
+`npx -y @abdulmunimjemal/codescope mcp .` over stdio.
 
 You can also drive it straight from the terminal:
 
