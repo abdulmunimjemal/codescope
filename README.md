@@ -28,15 +28,20 @@ a changed file in **~0.5 ms** — roughly **3,000× cheaper than a full re-index
 
 ## How it compares to codegraph
 
-If you know [codegraph](https://github.com/colbymchenry/codegraph) (~35k★): it's
-the mature, feature-rich option — 20+ languages, impact/test-affected analysis, a
-task-context builder, agent auto-install — and it already does incremental
-indexing and file-watching. **codescope doesn't try to out-feature it.** In a
-measured head-to-head ([BENCHMARKS.md](./BENCHMARKS.md)) codescope's edge is being
-**leaner**: ~3× smaller index DB and faster pure indexing on the same repo, a
-~1k-LOC auditable codebase, and zero-config `npx codescope mcp .`. Pick codescope
-if you want something small, fast, and easy to read; pick codegraph if you want
-the deepest feature set and widest language coverage.
+[codegraph](https://github.com/colbymchenry/codegraph) (~35k★) is the mature
+incumbent and shares codescope's architecture. In a **measured head-to-head**
+([BENCHMARKS.md](./BENCHMARKS.md), both tools run on the same repos), codescope
+**wins the efficiency axes**:
+
+- **~4× faster indexing** (696 ms vs 2,855 ms on a 262-file repo; 5.2 s vs 20 s on 3,500 files).
+- **3–5× smaller index** on disk (2.5 MB vs 8.2 MB; 22.9 MB vs 112.8 MB).
+- **Fewer tokens per answer** for definition lookups on every repo tested; callers is ≈parity.
+- Feature parity on the core graph queries: `callers`, `callees`, `impact`, `context`.
+
+codegraph still leads on **language breadth** (20+ vs 12), **extra tooling**
+(`affected` test-impact, agent auto-install), and **maturity/adoption**. Pick
+codescope when footprint, index speed, and token cost matter most; pick codegraph
+when you need the widest language coverage and the extra tooling.
 
 ## Install
 
@@ -87,7 +92,10 @@ codescope watch .                       # keep the graph fresh, log updates
 |------|-----------------|
 | `search_symbols(query, kind?, limit?)` | fuzzy substring search over definitions — use instead of grep/glob |
 | `get_symbol(name, limit?)` | jump to a definition by exact name (kind, `file:line`, signature) |
-| `find_callers(name, limit?)` | who calls this function/method |
+| `find_callers(name, limit?)` | who calls this function/method (distinct callers) |
+| `find_callees(name, limit?)` | what this symbol calls — its outgoing dependencies |
+| `impact(name, depth?, limit?)` | transitive callers (blast radius) before you change something |
+| `context(query, maxSymbols?)` | a ranked relevance map for a task — matches + neighbours, the fastest way to orient |
 | `find_references(name, kind?, limit?)` | all calls + imports of a name |
 | `file_outline(path)` | every symbol in a file, in order — a compact alternative to reading it |
 | `neighborhood(name, depth?, limit?)` | the call neighbourhood (callers + callees) around a symbol, as a subgraph |

@@ -53,46 +53,60 @@ per query). For the *"what's in this file"* task, `file_outline` is **59–86%**
 smaller than reading the file. Bigger files ⇒ bigger savings, which is why the
 reduction climbs on large repos.
 
-## How codescope compares to codegraph (measured head-to-head)
+## codescope vs codegraph — measured head-to-head
 
 [codegraph](https://github.com/colbymchenry/codegraph) (~35k★) is the leading
 local codebase-graph MCP and shares codescope's architecture (tree-sitter →
-SQLite + FTS5 → MCP). It **was executed** for this comparison (`@colbymchenry/codegraph`
-on the same `mcp-ts-sdk` checkout, ~275 files, same machine).
+SQLite + FTS5 → MCP, incremental sync, file watcher). Both tools were **run
+through their CLIs on the same repos, same machine**, by `bench/vs-codegraph.mjs`:
 
-| dimension | codegraph (measured) | codescope (measured) |
-|-----------|----------------------|----------------------|
-| full index (mcp-ts-sdk) | 986 ms (parse+resolve, internal timer) | ~495 ms (in-process) |
-| index DB size | **7.84 MB** | **2.5 MB** (~3× smaller) |
-| nodes captured | 3,585 (functions, methods, classes, interfaces, types, **constants, properties, routes, imports, files**) | 1,956 definitions (functions, methods, classes, interfaces, types, enums) |
-| incremental | `sync` command **+ file watcher (auto-sync in `serve`)** | file watcher + per-file replace |
-| search | SQLite FTS5 | SQLite FTS5 (trigram substring) |
-| languages | **20+** | 12 (TS/JS/TSX, Py, Go, Rust, Java, Ruby, C, C++, C#, PHP) |
-| extra tooling | `impact`, `affected` (test impact), `context` (task context), `callees`, agent auto-install | — |
-| query answer | kind + location + code snippet (~184 tokens for a 5-result query) | kind + location + signature (compact lines) |
-| install | `npx @colbymchenry/codegraph` | `npx codescope` |
+```bash
+node bench/vs-codegraph.mjs <repo-path>
+```
+
+| axis | repo | codegraph | codescope | winner |
+|------|------|----------:|----------:|:------:|
+| full index (CLI wall) | mcp-ts-sdk (262 f) | 2,855 ms | **696 ms** | codescope (4.1×) |
+| | phoenix (3,500 f) | 20,139 ms | **5,199 ms** | codescope (3.9×) |
+| index size on disk | mcp-ts-sdk | 8.2 MB | **2.5 MB** | codescope (3.3×) |
+| | phoenix | 112.8 MB | **22.9 MB** | codescope (4.9×) |
+| tokens / definition answer | mcp-ts-sdk | 187 | **148** | codescope |
+| | phoenix | 215 | **183** | codescope |
+| tokens / callers answer | mcp-ts-sdk | 139 | **126** | codescope |
+| | phoenix | **177** | 188 | codegraph (≈parity) |
+
+(Index wall includes Node/npx startup for both; tokens are startup-independent
+and are the core value metric. 15 shared query terms per repo, picked by
+call-site frequency.)
 
 ### Honest verdict
 
-codescope **does not beat codegraph overall.** codegraph is a more mature, more
-featureful tool (impact analysis, test-affected detection, task-context builder,
-20+ languages, agent auto-install) and it **already has** the incremental +
-file-watcher behaviour that this project's original premise assumed was missing.
+On the **measured efficiency axes, codescope wins**: it indexes **~4× faster**,
+its index is **3–5× smaller**, and it answers definition lookups in **fewer
+tokens** on every repo tested. Callers answers are a wash — codescope wins on the
+TypeScript repo and trails ~6% on the Python monorepo (long file paths), so call
+it parity. codescope also now matches codegraph's **core graph tools**
+(`callers`, `callees`, `impact`, `context`).
 
-Where codescope **genuinely wins, measured:**
+What **codegraph still leads on**, and codescope does not claim to beat:
 
-- **~3× smaller index** (2.5 MB vs 7.84 MB on the same repo) and **~2× faster
-  pure indexing** — though codegraph indexes *more* (constants, properties,
-  routes), so it is doing more work for that time/size.
-- **Smaller, simpler, fully auditable** codebase (one SQLite file, ~1k LOC, MIT,
-  zero-config `npx codescope mcp .`).
+- **Language breadth** — 20+ languages vs codescope's 12.
+- **Extra tooling** — `affected` (changed-files → impacted tests) and agent
+  auto-install (`codegraph install`), which codescope doesn't have.
+- **Richer nodes** — codegraph also indexes constants, properties, and routes as
+  graph nodes (part of why its index is larger).
+- **Maturity & adoption** — 35k★, a real user base, and battle-testing codescope
+  can't match on day one.
 
-Where codegraph leads: **features, language breadth, maturity, and adoption.**
+So: **codescope is faster, smaller, and more token-efficient with feature parity
+on the core graph queries; codegraph is broader and more mature.** Pick codescope
+when footprint, indexing speed, and token cost matter most; pick codegraph when
+you need maximum language coverage and the extra tooling.
 
-codescope's honest position is **"a lean, fast, easy-to-verify alternative,"**
-not "the codegraph killer." The token-reduction numbers above are real but they
-measure codescope vs *reading whole files*, the same baseline codegraph reports
-against — they are **not** evidence that codescope beats codegraph.
+> The token-reduction numbers in the first half of this doc measure codescope vs
+> *reading whole files* (the same baseline codegraph reports its 57% against) —
+> they show codescope's value over a naive agent, not over codegraph. The table
+> above is the actual codescope-vs-codegraph comparison.
 
 ## Caveats (read these)
 
