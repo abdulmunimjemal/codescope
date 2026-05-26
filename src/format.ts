@@ -1,3 +1,4 @@
+import type { AffectedResult } from "./affected.js";
 import type {
   ContextBundle,
   ImpactRow,
@@ -75,6 +76,15 @@ export function formatContext(b: ContextBundle): string {
     lines.push("", "call edges:");
     for (const e of b.edges) lines.push(`  ${e.from} → ${e.to}`);
   }
+  return lines.join("\n");
+}
+
+export function formatAffected(r: AffectedResult): string {
+  if (r.tests.length === 0) {
+    return `No test files appear affected by ${r.changed.length} changed file(s).`;
+  }
+  const lines = [`${r.tests.length} test file(s) affected by your changes:`, ""];
+  for (const t of r.tests) lines.push(`  ${t}`);
   return lines.join("\n");
 }
 

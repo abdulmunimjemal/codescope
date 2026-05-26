@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { affected } from "./affected.js";
 import * as fmt from "./format.js";
 import type { GraphStore } from "./store.js";
 import { VERSION } from "./version.js";
@@ -149,6 +150,20 @@ export function createServer(store: GraphStore): McpServer {
     },
     async ({ name, depth, limit }) =>
       textResult(fmt.formatNeighborhood(store.neighborhood(name, { depth, limit }))),
+  );
+
+  server.registerTool(
+    "affected",
+    {
+      title: "Affected tests",
+      description:
+        "Given a list of changed files, return the test files likely affected — the symbols those files define, walked through their transitive callers, filtered to tests. Use before running a suite to know what's worth re-running.",
+      inputSchema: {
+        files: z.array(z.string()).describe("repo-relative paths of the changed files"),
+        depth: z.number().int().min(1).max(6).optional(),
+      },
+    },
+    async ({ files, depth }) => textResult(fmt.formatAffected(affected(store, files, { depth }))),
   );
 
   server.registerTool(

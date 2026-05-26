@@ -2,8 +2,10 @@
 import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import pc from "picocolors";
+import { affected } from "./affected.js";
 import * as fmt from "./format.js";
 import { Indexer } from "./indexer.js";
+import { type AgentId, SUPPORTED_AGENTS, codexSnippet, install } from "./install.js";
 import { runStdioServer } from "./mcp.js";
 import { GraphStore } from "./store.js";
 import type { SymbolKind } from "./types.js";
@@ -18,6 +20,8 @@ interface Flags {
   kind?: string;
   limit?: number;
   depth?: number;
+  agent?: string;
+  global: boolean;
 }
 
 const HELP = `codescope ${VERSION} — local-first codebase knowledge-graph MCP server
@@ -26,6 +30,7 @@ Usage:
   codescope <command> [path] [options]
 
 Commands:
+  install [path]          Wire codescope into your agents (Claude Code, Cursor) automatically.
   mcp [path]              Index, watch for changes, and serve the graph over MCP (stdio).
                           This is what you wire into Claude Code / Cursor / Codex.
   index [path]            Build (or refresh) the on-disk graph and print stats.
@@ -37,9 +42,12 @@ Commands:
   callees <name> [path]   List what a function/method calls.
   impact <name> [path]    Transitive callers (blast radius) of a symbol.
   context <query> [path]  Ranked relevance map for a task (matches + neighbours).
+  affected <files...>     Test files affected by a set of changed files.
   neighborhood <name>     Show the call neighbourhood around a symbol.
 
 Options:
+  --agent <name>          install target: claude | cursor | all (default all).
+  --global                install: write to your home dir instead of the project.
   --path <dir>            Repository root (default: current directory or the positional path).
   --db <file>            SQLite graph location (default: <root>/.codescope/graph.db).
   --memory               Use an in-memory graph (not persisted).
@@ -57,12 +65,18 @@ Examples:
 `;
 
 function parseArgs(argv: string[]): Flags {
-  const flags: Flags = { positional: [], memory: false };
+  const flags: Flags = { positional: [], memory: false, global: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i] as string;
     switch (arg) {
       case "--memory":
         flags.memory = true;
+        break;
+      case "--global":
+        flags.global = true;
+        break;
+      case "--agent":
+        flags.agent = argv[++i];
         break;
       case "--path":
         flags.path = argv[++i];
@@ -168,6 +182,36 @@ async function cmdQuery(command: string, root: string, flags: Flags): Promise<vo
   store.close();
 }
 
+async function cmdAffected(root: string, flags: Flags): Promise<void> {
+  const files = flags.positional;
+  if (files.length === 0) fail("'affected' needs one or more changed file paths. See --help.");
+  const store = openStore(root, flags);
+  const indexer = new Indexer(store, root);
+  await ensureIndexed(indexer, store);
+  // Accept absolute or relative paths; normalise to the repo-relative graph key.
+  const rels = files.map((f) => indexer.rel(resolve(root, f)));
+  process.stdout.write(`${fmt.formatAffected(affected(store, rels, { depth: flags.depth }))}\n`);
+  store.close();
+}
+
+function cmdInstall(root: string, flags: Flags): void {
+  const agents: AgentId[] =
+    !flags.agent || flags.agent === "all"
+      ? [...SUPPORTED_AGENTS]
+      : SUPPORTED_AGENTS.includes(flags.agent as AgentId)
+        ? [flags.agent as AgentId]
+        : fail(`unknown --agent '${flags.agent}'. Use: ${SUPPORTED_AGENTS.join(", ")}, or all.`);
+
+  const results = install(root, { agents, global: flags.global });
+  for (const r of results) {
+    process.stdout.write(`${pc.green("✓")} ${r.action} codescope for ${pc.bold(r.agent)} → ${r.path}\n`);
+  }
+  process.stdout.write(
+    `\n${pc.dim("Restart your agent to pick up the change.")}\n` +
+      `${pc.dim("Codex (TOML config) — add this to ~/.codex/config.toml:")}\n${codexSnippet()}\n`,
+  );
+}
+
 async function cmdWatch(root: string, flags: Flags): Promise<void> {
   const store = openStore(root, flags);
   const indexer = new Indexer(store, root);
@@ -231,6 +275,11 @@ async function main(): Promise<void> {
     case "neighborhood":
       // positional[0] is the term; the optional repo path is positional[1].
       return cmdQuery(command, resolve(flags.path ?? flags.positional[1] ?? "."), flags);
+    case "affected":
+      // all positionals are changed files; repo root comes from --path or cwd.
+      return cmdAffected(resolve(flags.path ?? "."), flags);
+    case "install":
+      return cmdInstall(rootDir(flags), flags);
     case "watch":
       return cmdWatch(rootDir(flags), flags);
     case "mcp":

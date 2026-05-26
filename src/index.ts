@@ -15,6 +15,17 @@ export {
   type LanguageConfig,
 } from "./languages.js";
 export { createServer, runStdioServer } from "./mcp.js";
+export { affected, isTestFile, type AffectedResult } from "./affected.js";
+export {
+  install,
+  installInto,
+  serverEntry,
+  configPath,
+  codexSnippet,
+  SUPPORTED_AGENTS,
+  type AgentId,
+  type InstallOutcome,
+} from "./install.js";
 export * as format from "./format.js";
 export { VERSION } from "./version.js";
 export type * from "./types.js";

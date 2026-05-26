@@ -417,6 +417,22 @@ export class GraphStore {
     return rows.map(toRefRow);
   }
 
+  /**
+   * Files whose imports reference a module basename (e.g. `store` for
+   * `src/store.ts`). Matches `import … from "./store"`, `"../src/store.js"`,
+   * etc. Used by affected-test analysis to follow import edges, which — unlike
+   * call edges — reliably reach test files (tests import the module under test).
+   */
+  findImporters(moduleBasename: string): string[] {
+    return this.db
+      .prepare<[string, string, string], { path: string }>(
+        `SELECT DISTINCT f.path FROM refs r JOIN files f ON f.id = r.file_id
+         WHERE r.kind = 'import' AND (r.name = ? OR r.name LIKE ? OR r.name LIKE ?)`,
+      )
+      .all(moduleBasename, `%/${moduleBasename}`, `%/${moduleBasename}.%`)
+      .map((r) => r.path);
+  }
+
   /** The symbols defined in a file, in source order. */
   fileOutline(path: string): SymbolRow[] {
     return this.db
