@@ -62,6 +62,7 @@ describe("MCP server", () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
     expect(names).toEqual([
+      "affected",
       "context",
       "file_outline",
       "find_callees",

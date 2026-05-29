@@ -130,6 +130,74 @@ namespace App { class Service { int Run() { return Load(); } int Load(){ return 
     expectImports: ["System"],
   },
   {
+    lang: "scala",
+    ext: ".scala",
+    source: `import b.C
+class Service { def run(): Int = helper() }
+object Main { def go() = obj.run() }`,
+    expectSymbols: [
+      ["Service", "class"],
+      ["run", "method"],
+      ["Main", "class"],
+    ],
+    expectCalls: [["helper", "call"]],
+    expectImports: ["b.C"],
+  },
+  {
+    lang: "solidity",
+    ext: ".sol",
+    source: `import "./Other.sol";
+contract Token { function mint(uint x) public { burn(x); } }`,
+    expectSymbols: [
+      ["Token", "class"],
+      ["mint", "method"],
+    ],
+    expectCalls: [["burn", "call"]],
+    expectImports: ["./Other.sol"],
+  },
+  {
+    lang: "kotlin",
+    ext: ".kt",
+    source: `class Service { fun run(): Int { return 1 } }
+fun main() {}`,
+    expectSymbols: [
+      ["Service", "class"],
+      ["run", "method"], // nested function in a class
+      ["main", "function"],
+    ],
+  },
+  {
+    lang: "zig",
+    ext: ".zig",
+    source: `fn helper() i32 { return 1; }
+pub fn main() void { _ = helper(); }`,
+    expectSymbols: [
+      ["helper", "function"],
+      ["main", "function"],
+    ],
+    expectCalls: [["helper", "call"]],
+  },
+  {
+    lang: "bash",
+    ext: ".sh",
+    source: `helper() { echo hi; }
+main() { helper; }`,
+    expectSymbols: [
+      ["helper", "function"],
+      ["main", "function"],
+    ],
+  },
+  {
+    lang: "ocaml",
+    ext: ".ml",
+    source: `let helper x = x
+let run () = helper 1`,
+    expectSymbols: [
+      ["helper", "function"],
+      ["run", "function"],
+    ],
+  },
+  {
     lang: "php",
     ext: ".php",
     source: `<?php
