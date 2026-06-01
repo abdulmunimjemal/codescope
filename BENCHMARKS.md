@@ -179,20 +179,40 @@ process-startup noise (both finish well under a second) — codescope's robust
 speed win is on large repos (see the table above). This variance is the point:
 nothing here is hand-tuned to a single codebase.
 
-### Accuracy generalizes
+### Accuracy generalizes across languages
 
-The TypeScript-compiler accuracy benchmark, run on **two fresh TS repos** (got,
-zustand — different authors and domains than the MCP SDK):
+Accuracy is scored against each language's **own native analysis engine** as
+ground truth — not codescope's. Three independent oracles, three major languages:
 
-| repo | codescope F1 | codegraph F1 |
-|------|:------------:|:------------:|
-| got (101 defs) | **0.970** | 0.749 |
-| zustand (30 defs) | **0.989** | 0.867 |
+| language | oracle (ground truth) | repo | codescope F1 | codegraph F1 |
+|----------|----------------------|------|:------------:|:------------:|
+| TypeScript | `tsc` LanguageService | MCP core (88) | **0.952** | 0.664 |
+| TypeScript | `tsc` LanguageService | MCP client (39) | **0.916** | 0.701 |
+| TypeScript | `tsc` LanguageService | MCP server (36) | **0.956** | 0.906 |
+| TypeScript | `tsc` LanguageService | got (101) | **0.970** | 0.749 |
+| TypeScript | `tsc` LanguageService | zustand (30) | **0.989** | 0.867 |
+| Python | Jedi | requests (69) | **0.869** | 0.534 |
+| Go | `go/types` | gin (209) | **0.720** | 0.646 |
 
-Across **all five TS codebases** measured (MCP SDK core/client/server + got +
-zustand), codescope's caller F1 beats codegraph's every time — codegraph
-consistently misses 13–35% of true callers. The accuracy win is not specific to
-one repo.
+```bash
+# TypeScript (tsc oracle, built in)
+node bench/accuracy.mjs <ts-package-dir>
+# Python (Jedi) and Go (go/types) via a precomputed oracle:
+python3 bench/oracle-python.py <pkg> > o.json && node bench/accuracy-generic.mjs <pkg> o.json
+go run bench/oracle-go.go <repo> > o.json && node bench/accuracy-generic.mjs <repo> o.json
+```
+
+**codescope wins caller-F1 on every language and repo tested.** The pattern is
+consistent: codescope has near-perfect recall (it's name-based, so it rarely
+misses a true caller) while codegraph misses 13–48% of callers; codescope's
+precision matches or beats codegraph's.
+
+**Honest reading of Go:** gin is collision-heavy (many types share method names
+like `Use`, `Next`, `Handle`), so *both* tools have low precision there
+(codescope 0.62, codegraph 0.57) — neither resolves the receiver's type. This is
+the case where true type-aware resolution would help most, and it's the same
+roadmap item noted above. codescope still wins net, but Go is honestly the
+hardest language for this name-based approach.
 
 ### What this exercise found and fixed
 
