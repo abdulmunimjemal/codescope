@@ -4,7 +4,7 @@ import { defineConfig } from "tsup";
 // The tree-sitter grammar .wasm files ship with `tree-sitter-wasms` and are
 // resolved at runtime, so nothing is bundled or inlined here.
 export default defineConfig({
-  entry: ["src/index.ts", "src/cli.ts"],
+  entry: ["src/index.ts", "src/cli.ts", "src/parse-worker.ts"],
   format: ["esm"],
   target: "node18",
   dts: true,

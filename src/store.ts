@@ -105,6 +105,12 @@ export class GraphStore {
     this.db = new Database(location);
     this.db.pragma("journal_mode = WAL");
     this.db.pragma("foreign_keys = ON");
+    // Bulk-index write tuning: NORMAL is durable under WAL, and a larger page
+    // cache + in-memory temp store keep inserts and FTS rebuilds off the disk.
+    this.db.pragma("synchronous = NORMAL");
+    this.db.pragma("temp_store = MEMORY");
+    this.db.pragma("cache_size = -16000"); // ~16 MB
+    this.db.pragma("mmap_size = 268435456"); // 256 MB
     this.db.exec(SCHEMA);
   }
 

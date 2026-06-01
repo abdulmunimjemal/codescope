@@ -5,6 +5,7 @@ import { relative, resolve, sep } from "node:path";
 import ignore, { type Ignore } from "ignore";
 import { glob } from "tinyglobby";
 import { SUPPORTED_EXTENSIONS, languageForPath } from "./languages.js";
+import { ParsePool } from "./parse-pool.js";
 import { parseSource } from "./parser.js";
 import type { GraphStore } from "./store.js";
 import type { IndexRunResult } from "./types.js";
@@ -50,29 +51,61 @@ export class Indexer {
     this.root = resolve(root);
   }
 
-  /** Index every supported, non-ignored file and prune deleted ones. */
+  /**
+   * Index every supported, non-ignored file and prune deleted ones. Parsing —
+   * the bulk of the cost — is fanned across a worker pool when there are enough
+   * files; the main thread owns SQLite and inserts results as they arrive. Falls
+   * back to single-threaded parsing if workers are unavailable.
+   */
   async indexAll(opts: IndexOptions = {}): Promise<IndexRunResult> {
     const start = Date.now();
-    const result: IndexRunResult = {
-      indexed: 0,
-      skipped: 0,
-      removed: 0,
-      errors: [],
-      durationMs: 0,
-    };
+    const result: IndexRunResult = { indexed: 0, skipped: 0, removed: 0, errors: [], durationMs: 0 };
 
     const files = await this.listSourceFiles(opts);
     const present = new Set<string>();
 
-    for (const abs of files) {
-      present.add(this.rel(abs));
+    let pool: ParsePool | null = null;
+    if (files.length > 24) {
       try {
-        const outcome = await this.indexFile(abs, start);
-        if (outcome === "indexed") result.indexed++;
-        else if (outcome === "skipped") result.skipped++;
-      } catch (err) {
-        result.errors.push({ file: this.rel(abs), error: errorMessage(err) });
+        pool = new ParsePool();
+      } catch {
+        pool = null; // locked-down env without worker support — fall back
       }
+    }
+
+    const processFile = async (abs: string): Promise<void> => {
+      const lang = languageForPath(abs);
+      if (!lang) return;
+      const rel = this.rel(abs);
+      present.add(rel);
+      try {
+        const content = await readFile(abs, "utf8");
+        const hash = sha1(content);
+        if (this.store.getFileHash(rel) === hash) {
+          result.skipped++;
+          return;
+        }
+        const parsed = pool
+          ? await pool.parse(lang.id, content)
+          : await parseSource(lang.id, content);
+        const mtime = await fileMtime(abs, start);
+        this.store.replaceFile(
+          { path: rel, lang: lang.id, hash, size: content.length, mtime },
+          parsed.symbols,
+          parsed.refs,
+          start,
+        );
+        result.indexed++;
+      } catch (err) {
+        result.errors.push({ file: rel, error: errorMessage(err) });
+      }
+    };
+
+    try {
+      const concurrency = pool ? pool.size * 4 : 1;
+      await mapLimit(files, concurrency, processFile);
+    } finally {
+      if (pool) await pool.close();
     }
 
     for (const known of this.store.listFiles()) {
@@ -140,6 +173,18 @@ export class Indexer {
       return null;
     }
   }
+}
+
+/** Run `fn` over `items` with at most `limit` in flight at once. */
+async function mapLimit<T>(items: T[], limit: number, fn: (item: T) => Promise<void>): Promise<void> {
+  let cursor = 0;
+  const runners = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
+    while (cursor < items.length) {
+      const item = items[cursor++];
+      if (item !== undefined) await fn(item);
+    }
+  });
+  await Promise.all(runners);
 }
 
 function sha1(content: string): string {
