@@ -4,6 +4,14 @@ All notable changes to codescope are documented here. This project adheres to
 [Semantic Versioning](https://semver.org) (pre-1.0: minor = features, patch =
 fixes/docs).
 
+## 0.4.2
+
+- **Fix:** the worker-thread parse pool engaged too eagerly (>24 files); its
+  startup cost made small/medium repos *slower*. Raised the threshold so the pool
+  only runs on large monorepos — small/medium repos use the faster single-threaded
+  path. Found via cross-codebase benchmarking (gin, requests, zustand, got,
+  ripgrep). See BENCHMARKS.md → "Does it generalize?".
+
 ## 0.4.1
 
 - Publish the accuracy-documented README (callers accuracy measured against the

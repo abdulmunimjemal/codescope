@@ -95,10 +95,9 @@ describe("Indexer.indexAll", () => {
 });
 
 describe("Indexer.indexAll (at scale)", () => {
-  it("indexes a large file set correctly (worker pool in prod, fallback in tests)", async () => {
-    // 40 files crosses the threshold where indexAll prefers the worker pool;
-    // under vitest the un-built worker triggers the single-threaded fallback,
-    // so this asserts the pipeline is correct on both paths.
+  it("indexes a multi-file set correctly via the single-threaded pipeline", async () => {
+    // 40 files stays under the worker-pool threshold (large monorepos only), so
+    // this exercises the common single-threaded path end to end.
     for (let i = 0; i < 40; i++) {
       await write(`src/mod${i}.ts`, `export function fn${i}() { return helper${i}(); }`);
     }

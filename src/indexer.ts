@@ -64,8 +64,12 @@ export class Indexer {
     const files = await this.listSourceFiles(opts);
     const present = new Set<string>();
 
+    // The worker pool has a real fixed startup cost (each worker initialises a
+    // tree-sitter WASM runtime + grammars), so it only pays off on large repos.
+    // Benchmarking across diverse codebases showed single-threaded parsing is
+    // faster up to several hundred files; the pool only wins on big monorepos.
     let pool: ParsePool | null = null;
-    if (files.length > 24) {
+    if (files.length > 750) {
       try {
         pool = new ParsePool();
       } catch {

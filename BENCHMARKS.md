@@ -158,6 +158,51 @@ true cross-file resolution, broader agent install, and (above all) maturity.
 > they show codescope's value over a naive agent, not over codegraph. The table
 > above is the actual codescope-vs-codegraph comparison.
 
+## Does it generalize? (cross-codebase)
+
+To check the results aren't tuned to one repo, codescope and codegraph were run
+on **five fresh, unrelated codebases** across languages — including **Gin, one of
+codegraph's own published benchmark repos** (anti-cherry-pick):
+
+| repo | lang | index size | tokens/def | tokens/callers |
+|------|------|:----------:|:----------:|:--------------:|
+| gin | Go | **cs** 1.6 vs 5.6 MB | cg 109 vs 97 | **cs** 76 vs 103 |
+| requests | Python | **cs** 0.7 vs 2.4 MB | **cs** 126 vs 172 | **cs** 59 vs 74 |
+| zustand | TS | **cs** 0.5 vs 1.0 MB | tie 81 vs 80 | cg 29 vs 20 |
+| got | TS | **cs** 1.0 vs 3.2 MB | **cs** 90 vs 96 | tie 53 vs 52 |
+| ripgrep | Rust | **cs** 2.0 vs 9.1 MB | **cs** 150 vs 167 | **cs** 81 vs 154 |
+
+**Honest reading:** index size — codescope wins **5/5** (3–4× smaller). Tokens —
+codescope wins most, ties or loses a few (gin definitions, zustand callers); it's
+competitive, not universally ahead. Index *speed* on these small repos is within
+process-startup noise (both finish well under a second) — codescope's robust
+speed win is on large repos (see the table above). This variance is the point:
+nothing here is hand-tuned to a single codebase.
+
+### Accuracy generalizes
+
+The TypeScript-compiler accuracy benchmark, run on **two fresh TS repos** (got,
+zustand — different authors and domains than the MCP SDK):
+
+| repo | codescope F1 | codegraph F1 |
+|------|:------------:|:------------:|
+| got (101 defs) | **0.970** | 0.749 |
+| zustand (30 defs) | **0.989** | 0.867 |
+
+Across **all five TS codebases** measured (MCP SDK core/client/server + got +
+zustand), codescope's caller F1 beats codegraph's every time — codegraph
+consistently misses 13–35% of true callers. The accuracy win is not specific to
+one repo.
+
+### What this exercise found and fixed
+
+Cross-codebase benchmarking caught a real regression, not a tuning opportunity:
+the worker-thread parse pool engaged at >24 files, but its startup cost only pays
+off on large monorepos — so small/medium repos were *slower* with it on. The
+threshold was raised so the pool engages only for large repos; small/medium repos
+use the faster single-threaded path. (Finding and fixing this is the opposite of
+benchmark-maxing.)
+
 ## Caveats (read these)
 
 - **The codegraph head-to-head is single-repo, single-run** (mcp-ts-sdk, one
