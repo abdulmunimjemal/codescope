@@ -1,0 +1,18 @@
+name: Feature request
+description: Suggest a tool, query, or capability for codescope.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What can't you do today? What does your agent struggle with?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should codescope do? A new MCP tool, CLI command, query, etc.
+    validations:
+      required: true

@@ -1,0 +1,23 @@
+name: New language
+description: Request (or volunteer to add) support for a programming language.
+labels: ["language", "good first issue"]
+body:
+  - type: input
+    id: language
+    attributes:
+      label: Language
+      placeholder: e.g. Haskell, Elixir, Svelte
+    validations:
+      required: true
+  - type: input
+    id: grammar
+    attributes:
+      label: tree-sitter grammar
+      description: Is there a grammar in `tree-sitter-wasms/out/`? (codescope needs ABI 13–14)
+      placeholder: tree-sitter-haskell.wasm
+  - type: markdown
+    attributes:
+      value: |
+        Adding a language is usually a single config object + a test — see
+        [CONTRIBUTING.md → Adding a language](../blob/main/CONTRIBUTING.md#adding-a-language-a-great-first-contribution).
+        PRs welcome!

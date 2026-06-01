@@ -1,0 +1,36 @@
+name: Bug report
+description: Something codescope did wrong — a crash, a wrong result, a missing symbol.
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What did you expect, and what did you get instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: A minimal repo, file, or command sequence. The smaller the better.
+      placeholder: |
+        1. `codescope index .`
+        2. `codescope callers foo`
+        3. expected X, got Y
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: codescope version
+      description: Output of `codescope --version`
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: OS & Node version
+      placeholder: macOS 14 · Node 20
+    validations:
+      required: true
