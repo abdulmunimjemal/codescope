@@ -394,6 +394,21 @@ const bash: LanguageConfig = {
   exportTypes: new Set(),
 };
 
+const rescript: LanguageConfig = {
+  id: "rescript",
+  wasm: "rescript",
+  defs: {
+    let_binding: { kind: "function", name: "field", nameField: "pattern" },
+    type_declaration: { kind: "type" },
+    module_declaration: { kind: "class" },
+  },
+  functionBindings: new Set(),
+  nestedFunctionsAreMethods: false,
+  callRules: [{ type: "call_expression", fnField: "function" }],
+  importRules: [],
+  exportTypes: new Set(),
+};
+
 const ocaml: LanguageConfig = {
   id: "ocaml",
   wasm: "ocaml",
@@ -431,6 +446,7 @@ export const LANGUAGES: Record<string, LanguageConfig> = {
   lua,
   bash,
   ocaml,
+  rescript,
 };
 
 /** File extension → language id. */
@@ -470,6 +486,7 @@ const EXT_TO_LANG: Record<string, string> = {
   ".bash": "bash",
   ".ml": "ocaml",
   ".mli": "ocaml",
+  ".res": "rescript",
 };
 
 /** The set of file extensions codescope indexes (with leading dot). */

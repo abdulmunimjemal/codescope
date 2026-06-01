@@ -203,7 +203,10 @@ function extractCall(
         kind = "method";
       } else if (rule.scopedTypes?.includes(fn.type)) {
         name = fn.childForFieldName(rule.scopedField ?? "")?.text ?? null;
-      } else if (fn.type === "identifier" || fn.type === "name") {
+      } else if (fn.namedChildCount === 0) {
+        // A leaf callee — a bare identifier token. Grammars name this node
+        // differently (identifier, name, value_identifier, simple_identifier …),
+        // so match structurally rather than by type.
         name = fn.text;
       }
     }
