@@ -48,7 +48,12 @@ incumbent and shares codescope's architecture. In a **measured head-to-head**
 codegraph still leads on **maturity & adoption** (35k★, a real user base) and a
 few extra node kinds (constants, properties, routes). Pick codescope when
 accuracy, footprint, index speed, and token cost matter; pick codegraph for the
-most battle-tested option. Full numbers in [BENCHMARKS.md](./BENCHMARKS.md).
+most battle-tested option.
+
+codescope has also been benchmarked against other OSS peers — **`code-graph-mcp`**
+and **`code-review-graph`** — and is smaller, faster to index, and more
+caller-accurate than both. Full numbers and methodology in
+[BENCHMARKS.md](./BENCHMARKS.md).
 
 ## Install
 
@@ -116,6 +121,7 @@ codescope watch .                       # keep the graph fresh, log updates
 | `find_callees(name, limit?)` | what this symbol calls — its outgoing dependencies |
 | `impact(name, depth?, limit?)` | transitive callers (blast radius) before you change something |
 | `context(query, maxSymbols?)` | a ranked relevance map for a task — matches + neighbours, the fastest way to orient |
+| `affected(files, depth?)` | given changed files, the test files likely affected (call- + import-graph) |
 | `find_references(name, kind?, limit?)` | all calls + imports of a name |
 | `file_outline(path)` | every symbol in a file, in order — a compact alternative to reading it |
 | `neighborhood(name, depth?, limit?)` | the call neighbourhood (callers + callees) around a symbol, as a subgraph |
